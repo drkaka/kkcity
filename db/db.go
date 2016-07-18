@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/drkaka/kkpanic"
 	"github.com/jackc/pgx"
 )
 
@@ -26,17 +27,13 @@ func Use(langs []string, pool *pgx.ConnPool) error {
 // prepareDB to prepare the database.
 func prepareDB() error {
 	tx, err := dbPool.Begin()
-	if err != nil {
-		panic(err)
-	}
+	kkpanic.P(err)
 
 	prepareCountry(tx)
 	prepareCity(tx)
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	err = tx.Commit()
+	return err
 }
 
 // CheckColumnExisted to check whether the column is existed in table.

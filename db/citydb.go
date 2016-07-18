@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drkaka/kkpanic"
 	"github.com/jackc/pgx"
 )
 
@@ -11,37 +12,31 @@ import (
 var languages []string
 
 func prepareCity(tx *pgx.Tx) {
+	var err error
 	// create city info table
 	s := `CREATE TABLE IF NOT EXISTS city_info (
 	placeid text primary key,
 	country_id text);`
 
-	if _, err := tx.Exec(s); err != nil {
-		panic(err)
-	}
-	if _, err := tx.Exec("CREATE INDEX IF NOT EXISTS index_city_info_country_id ON city_info (country_id);"); err != nil {
-		panic(err)
-	}
+	_, err = tx.Exec(s)
+	kkpanic.P(err)
+
+	_, err = tx.Exec("CREATE INDEX IF NOT EXISTS index_city_info_country_id ON city_info (country_id);")
+	kkpanic.P(err)
 
 	// setup the language name and address column
 	for i := range languages {
 		nameColumn, addressColumn, err := getCityColumnNames(i)
-		if err != nil {
-			panic(err)
-		}
+		kkpanic.P(err)
 
 		if existed, err := CheckColumnExisted("city_info", nameColumn); err != nil {
 			panic(err)
 		} else if !existed {
 			_, err := tx.Exec(fmt.Sprintf("ALTER TABLE city_info ADD %s text;", nameColumn))
-			if err != nil {
-				panic(err)
-			}
+			kkpanic.P(err)
 
 			_, err = tx.Exec(fmt.Sprintf("ALTER TABLE city_info ADD %s text;", addressColumn))
-			if err != nil {
-				panic(err)
-			}
+			kkpanic.P(err)
 		}
 	}
 }
@@ -99,13 +94,9 @@ func GetCityInfo(placeid string, tp int) (bool, string, string, error) {
 // UpdateCityInfo to update a certain language.
 func UpdateCityInfo(placeid, name, address string, tp int) error {
 	nameColumn, addressColumn, err := getCityColumnNames(tp)
-	if err != nil {
-		return err
-	}
+	kkpanic.P(err)
 
 	s := fmt.Sprintf("UPDATE city_info SET %s=$1,%s=$2 WHERE placeid=$3", nameColumn, addressColumn)
-	if _, err := dbPool.Exec(s, name, address, placeid); err != nil {
-		return err
-	}
-	return nil
+	_, err = dbPool.Exec(s, name, address, placeid)
+	return err
 }

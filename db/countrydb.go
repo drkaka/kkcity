@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/drkaka/kkpanic"
 	"github.com/jackc/pgx"
 )
 
@@ -18,21 +19,45 @@ func prepareCountry(tx *pgx.Tx) {
 	id text primary key,
     name text);`
 
-	if _, err := tx.Exec(s); err != nil {
-		panic(err)
+	_, err := tx.Exec(s)
+	kkpanic.P(err)
+}
+
+// checkCountryID to check whether country id is valid.
+func checkCountryID(id string) error {
+	if len(id) != 2 {
+		return ErrCountryID
 	}
+	return nil
 }
 
 // AddCountry to add a country.
-func AddCountry(id, name string) (bool, error) {
-	if len(id) != 2 {
-		return false, ErrCountryID
+func AddCountry(id, name string) error {
+	if err := checkCountryID(id); err != nil {
+		return err
 	}
 
 	upperID := strings.ToUpper(id)
 	_, err := dbPool.Exec("INSERT INTO country_info(id,name) VALUES($1,$2)", upperID, name)
 	if err != nil {
 		if err, ok := err.(pgx.PgError); ok && err.Code == "23505" {
+			return nil
+		}
+	}
+	return err
+}
+
+// CheckCountryExisted to check whether a country is already added.
+func CheckCountryExisted(id string) (bool, error) {
+	if err := checkCountryID(id); err != nil {
+		return false, err
+	}
+
+	var countryID pgx.NullString
+
+	err := dbPool.QueryRow("SELECT id FROM country_info WHERE id=$1", id).Scan(&countryID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
 			return false, nil
 		}
 		return false, err
@@ -49,9 +74,8 @@ func GetCountries() ([]string, []string) {
 	for rows.Next() {
 		var country pgx.NullString
 		var countryName pgx.NullString
-		if err := rows.Scan(&country, &countryName); err != nil {
-			panic(err)
-		}
+
+		kkpanic.P(rows.Scan(&country, &countryName))
 
 		countries = append(countries, country.String)
 		countryNames = append(countryNames, countryName.String)
