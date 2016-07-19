@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var testLangs = []string{"en", "cn"}
+var testLangs = []string{"en", "zh"}
 
 func TestDB(t *testing.T) {
 	suite.Run(t, new(DBHandleSuite))
@@ -20,7 +20,7 @@ type DBHandleSuite struct {
 	suite.Suite
 }
 
-func (suite *DBHandleSuite) SetupTest() {
+func (suite *DBHandleSuite) SetupSuite() {
 	DBName := os.Getenv("dbname")
 	DBHost := os.Getenv("dbhost")
 	DBUser := os.Getenv("dbuser")
@@ -43,8 +43,7 @@ func (suite *DBHandleSuite) SetupTest() {
 	pool, err = pgx.NewConnPool(connPoolConfig)
 	suite.NoError(err, "Should be able to create pool.")
 
-	err = Use(testLangs, pool)
-	suite.NoError(err, "Should be able to use DB.")
+	Use(testLangs, pool)
 }
 
 func (suite *DBHandleSuite) TearDownSuite() {
@@ -54,6 +53,8 @@ func (suite *DBHandleSuite) TearDownSuite() {
 
 	_, err = dbPool.Exec("DROP TABLE city_info;")
 	suite.NoError(err, "city_info should be able to be dropped.")
+
+	dbPool.Close()
 }
 
 func (suite *DBHandleSuite) TestColumnsExist() {
@@ -71,6 +72,11 @@ func (suite *DBHandleSuite) TestColumnsExist() {
 
 		existed, err = CheckColumnExisted("city_info", columnAddress)
 		suite.True(existed, columnAddress, " should be existed.")
+		suite.Nil(err, "There should be no error while check exist.")
+
+		columnName, err = getCountryColumnName(i)
+		existed, err = CheckColumnExisted("country_info", columnName)
+		suite.True(existed, columnName, " should be existed.")
 		suite.Nil(err, "There should be no error while check exist.")
 	}
 }
@@ -111,7 +117,7 @@ func (suite *DBHandleSuite) TestCityInfo() {
 
 	tpOutRange := 2
 	_, _, _, err = GetCityInfo(noPlace, tpOutRange)
-	suite.Error(err, "Should have error while tp is out of range.")
+	suite.Equal(ErrLanguageIndex, err, "Should have error while tp is out of range.")
 }
 
 func (suite *DBHandleSuite) TestCountryInfo() {
@@ -119,39 +125,58 @@ func (suite *DBHandleSuite) TestCountryInfo() {
 	id2 := "CN"
 	name1 := "English"
 	name2 := "Chinese"
+	name2CN := "中国"
 	id2Lower := "cn"
 
 	badID := "123"
-	err := AddCountry(badID, "bad")
+	err := AddCountry(badID, "bad", 0)
 	suite.Equal(ErrCountryID, err, "country id format is wrong.")
 
-	err = AddCountry(id1, name1)
+	err = AddCountry(id1, name1, 0)
 	suite.NoError(err, "Should have no error.")
 
-	err = AddCountry(id2Lower, name2)
+	err = AddCountry(id1, name1, 1)
+	suite.Equal(ErrCountryExisted, err, "Should have error that country is existed.")
+
+	err = AddCountry(id2, name1, 2)
+	suite.Equal(ErrLanguageIndex, err, "Should have error that language is out of index.")
+
+	err = AddCountry(id2Lower, name2, 0)
 	suite.NoError(err, "Shoule have no error.")
 
-	ids, names := GetCountries()
+	err = UpdateCountryInfo(id2, name2CN, 1)
+	suite.NoError(err, "Shoule have no error.")
+
+	var ids, names []string
+	ids, names, err = GetCountries(1)
+	suite.NoError(err, "Shoule have no error.")
+
 	suite.EqualValues(2, len(ids), "Shoule have 2 result.")
 	suite.EqualValues(2, len(names), "Shoule have 2 result.")
-	for _, one := range ids {
+	for i, one := range ids {
 		if one != id1 && one != id2 {
 			suite.Fail("id is wrong.")
 		}
-	}
 
-	for _, one := range names {
-		if one != name1 && one != name2 {
-			suite.Fail("name is wrong.")
+		if one == id1 {
+			suite.Equal("", names[i], "Name should be empty.")
+		}
+
+		if one == id2 {
+			suite.Equal(name2CN, names[i], "Name is wrong.")
 		}
 	}
 
 	var existed bool
-	existed, err = CheckCountryExisted(badID)
+	var name string
+
+	existed, name, err = GetCountryName(badID, 0)
 	suite.False(existed, "Country should not existed.")
+	suite.Equal("", name, "Name should be empty.")
 	suite.EqualValues(ErrCountryID, err, "Should have bad country id error.")
 
-	existed, err = CheckCountryExisted(id1)
+	existed, name, err = GetCountryName(id2, 1)
 	suite.True(existed, "Country should existed.")
+	suite.Equal(name2CN, name, "Name is wrong.")
 	suite.NoError(err, "Should be able to get country.")
 }

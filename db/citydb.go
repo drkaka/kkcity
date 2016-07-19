@@ -1,15 +1,11 @@
 package db
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/drkaka/kkpanic"
 	"github.com/jackc/pgx"
 )
-
-// languages used to generate db column
-var languages []string
 
 func prepareCity(tx *pgx.Tx) {
 	var err error
@@ -45,19 +41,10 @@ func prepareCity(tx *pgx.Tx) {
 func getCityColumnNames(tp int) (string, string, error) {
 	llength := len(languages)
 	if tp < 0 || tp >= llength {
-		return "", "", errors.New("Language index wrong.")
+		return "", "", ErrLanguageIndex
 	}
 
 	return fmt.Sprintf("name_%s", languages[tp]), fmt.Sprintf("address_%s", languages[tp]), nil
-}
-
-// checkLanguage to check whether a language is valid
-func checkLanguage(tp int) error {
-	llength := len(languages)
-	if tp < 0 || tp >= llength {
-		return errors.New("Language index wrong.")
-	}
-	return nil
 }
 
 // AddCityInfo to add a city.

@@ -8,32 +8,39 @@ import (
 	"github.com/jackc/pgx"
 )
 
+// languages used to generate db column
+var languages []string
+
 // dbPool the pgx database pool.
 var dbPool *pgx.ConnPool
 
+// ErrLanguageIndex the language index is wrong.
+var ErrLanguageIndex = errors.New("Language index wrong.")
+
 // Use the pool to do further operations.
-func Use(langs []string, pool *pgx.ConnPool) error {
+// langs must follow ISO-639-1 (https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
+func Use(langs []string, pool *pgx.ConnPool) {
 	for _, one := range langs {
 		if len(one) != 2 {
-			return errors.New("Language length is not 2.")
+			panic("Language length is not 2.")
 		}
 		languages = append(languages, strings.ToLower(one))
 	}
 
 	dbPool = pool
-	return prepareDB()
+
+	prepareDB()
 }
 
 // prepareDB to prepare the database.
-func prepareDB() error {
+func prepareDB() {
 	tx, err := dbPool.Begin()
 	kkpanic.P(err)
 
 	prepareCountry(tx)
 	prepareCity(tx)
 
-	err = tx.Commit()
-	return err
+	kkpanic.P(tx.Commit())
 }
 
 // CheckColumnExisted to check whether the column is existed in table.
