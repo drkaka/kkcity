@@ -30,22 +30,17 @@ type oneAddress struct {
 	Types     []string `json:"types"`
 }
 
-type oneLatlngResult struct {
-	AddressComponents []oneAddress    `json:"address_components"`
-	Formatted         string          `json:"formatted_address"`
+type oneLatLngResult struct {
+	AddressComponents json.RawMessage `json:"address_components"`
+	Formatted         json.RawMessage `json:"formatted_address"`
 	Geometry          json.RawMessage `json:"geometry"`
 	PlaceID           string          `json:"place_id"`
 }
 
-// LatLngLocation to define the result of search result with lat and lng.
+// latLngLocation to define the result of search result with lat and lng.
 type latLngLocation struct {
-	Results []oneLatlngResult `json:"results"`
+	Results []oneLatLngResult `json:"results"`
 	statusField
-}
-
-type predictTerm struct {
-	Offset int32  `json:"offset"`
-	Value  string `json:"value"`
 }
 
 type predictResult struct {
@@ -55,7 +50,7 @@ type predictResult struct {
 	Description string          `json:"description"`
 	PlaceID     string          `json:"place_id"`
 	Types       json.RawMessage `json:"types"`
-	Terms       []predictTerm   `json:"terms"`
+	Terms       json.RawMessage `json:"terms"`
 }
 
 type predictLocation struct {
@@ -92,7 +87,7 @@ func getString(addr []oneAddress, tp string, isShort bool) (string, bool) {
 // getLocationWithLatLng to get location with lat lng.
 // If no result, return ErrNoPlace.
 // If out of limitation, return ErrLimitation
-func getLocationWithLatLng(lat, lng float32) (string, error) {
+func requestLocationWithLatLng(lat, lng float32) (string, error) {
 	request := gorequest.New().Timeout(10 * time.Second)
 	request.Type("json")
 	url := fmt.Sprintf("https://maps.googleapis.com/maps/api/geocode/json?result_type=locality&key=%s&latlng=%f,%f", googleKey, lat, lng)
@@ -120,10 +115,11 @@ func getLocationWithLatLng(lat, lng float32) (string, error) {
 }
 
 // getAutoComplete to get placeids and their description with input.
-func getAutoComplete(input, language string) ([]string, []string, error) {
+// Return place ids, descriptions, error
+func requestAutoComplete(input, lang string) ([]string, []string, error) {
 	request := gorequest.New().Timeout(10 * time.Second)
 	request.Type("json")
-	url := fmt.Sprintf("https://maps.googleapis.com/maps/api/place/autocomplete/json?types=(cities)&language=%s&key=%s&input=%s", language, googleKey, input)
+	url := fmt.Sprintf("https://maps.googleapis.com/maps/api/place/autocomplete/json?types=(cities)&language=%s&key=%s&input=%s", lang, googleKey, input)
 
 	if resp, body, errs := request.Get(url).EndBytes(); len(errs) != 0 {
 		return nil, nil, errs[0]
@@ -156,10 +152,10 @@ func getAutoComplete(input, language string) ([]string, []string, error) {
 }
 
 // getPlaceInfo to get place information with place ID.
-func getPlaceInfo(placeid, language string) (country, countryName, placeName, address string, erro error) {
+func requestPlaceInfo(placeid, lang string) (country, countryName, placeName, address string, erro error) {
 	request := gorequest.New().Timeout(10 * time.Second)
 	request.Type("json")
-	url := fmt.Sprintf("https://maps.googleapis.com/maps/api/place/details/json?placeid=%s&key=%s&language=%s", placeid, googleKey, language)
+	url := fmt.Sprintf("https://maps.googleapis.com/maps/api/place/details/json?placeid=%s&key=%s&language=%s", placeid, googleKey, lang)
 
 	if resp, body, errs := request.Get(url).EndBytes(); len(errs) != 0 {
 		erro = errs[0]

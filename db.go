@@ -122,7 +122,7 @@ func addCityInfo(placeid, country string) error {
 }
 
 // getCityInfo to get city information of a certain language.
-// Return place existed, name, address.
+// Return place existed, name, address, error.
 func getCityInfo(placeid, lang string) (bool, string, string, error) {
 	nameColumn, addressColumn := getCityColumnNames(lang)
 
