@@ -53,15 +53,26 @@ func handleCityInfo(placeid, lang string) (string, string, error) {
 		}
 
 		if !cityExist {
-			if err = addCityInfo(placeid, country); err != nil {
+			if err = addCityInfo(placeid, country, cityName, cityAddress, lang); err != nil {
+				return "", "", err
+			}
+		} else {
+			if err = updateCityInfo(placeid, cityName, cityAddress, lang); err != nil {
 				return "", "", err
 			}
 		}
-		if err = updateCityInfo(placeid, cityName, cityAddress, lang); err != nil {
-			return "", "", err
-		}
 	}
 	return cityName, cityAddress, nil
+}
+
+// GetCountries to get all the countries.
+// Return country ids, names, error
+func GetCountries(langIndex int) ([]string, []string, error) {
+	lang, err := getLanguage(langIndex)
+	if err != nil {
+		return nil, nil, err
+	}
+	return getCountries(lang)
 }
 
 // GetCityWithLatLng to get city information with lat and lng.
@@ -116,4 +127,14 @@ func GetCitiesWithInput(input string, langIndex int) ([]string, []string, []stri
 	}
 
 	return placeIDs, cityNames, cityAddresses, err
+}
+
+// GetCountryCities to get all the cities in one country.
+// Return city ids, names, addresses, error
+func GetCountryCities(countryID string, langIndex int) ([]string, []string, []string, error) {
+	lang, err := getLanguage(langIndex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return getCountryCities(countryID, lang)
 }

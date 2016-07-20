@@ -15,6 +15,9 @@ var (
 
 	// ErrCountryExisted to define the country already existed.
 	ErrCountryExisted = errors.New("Country is already existed.")
+
+	// ErrCityExisted to define the city already existed.
+	ErrCityExisted = errors.New("City is already existed.")
 )
 
 // dbPool the pgx database pool.
@@ -111,11 +114,14 @@ func getCityColumnNames(lang string) (string, string) {
 }
 
 // addCityInfo to add a city.
-func addCityInfo(placeid, country string) error {
-	_, err := dbPool.Exec("INSERT INTO city_info(placeid,country_id) VALUES($1,$2)", placeid, country)
+func addCityInfo(placeid, country, name, address, lang string) error {
+	nameColumn, addressColumn := getCityColumnNames(lang)
+
+	s := fmt.Sprintf("INSERT INTO city_info(placeid,country_id,%s,%s) VALUES($1,$2,$3,$4)", nameColumn, addressColumn)
+	_, err := dbPool.Exec(s, placeid, country, name, address)
 	if err != nil {
 		if err, ok := err.(pgx.PgError); ok && err.Code == "23505" {
-			return nil
+			return ErrCityExisted
 		}
 	}
 	return err
@@ -146,6 +152,29 @@ func updateCityInfo(placeid, name, address, lang string) error {
 
 	_, err := dbPool.Exec(s, name, address, placeid)
 	return err
+}
+
+// getCountryCities to get city information in one country.
+// Return city ids, names, addresses, error
+func getCountryCities(countryID, lang string) ([]string, []string, []string, error) {
+	nameColumn, addressColumn := getCityColumnNames(lang)
+
+	s := fmt.Sprintf("SELECT placeid,%s,%s FROM city_info WHERE country_id=$1", nameColumn, addressColumn)
+	rows, _ := dbPool.Query(s, countryID)
+
+	var placeIDs, cityNames, cityAddresses []string
+	for rows.Next() {
+		var placeID, cityName, cityAddress pgx.NullString
+
+		if err := rows.Scan(&placeID, &cityName, &cityAddress); err != nil {
+			return placeIDs, cityNames, cityAddresses, err
+		}
+
+		placeIDs = append(placeIDs, placeID.String)
+		cityNames = append(cityNames, cityName.String)
+		cityAddresses = append(cityAddresses, cityAddress.String)
+	}
+	return placeIDs, cityNames, cityAddresses, nil
 }
 
 // getCountryColumnName to get the name of country name column.

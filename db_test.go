@@ -42,20 +42,26 @@ func (suite *dbHandleSuite) TestColumnsExist() {
 
 func (suite *dbHandleSuite) TestCityInfo() {
 	pid1 := "placeid1"
-	err := addCityInfo(pid1, "CN")
-	suite.NoError(err, "Should be able to add city info.")
-	err = addCityInfo(pid1, "CN")
-	suite.NoError(err, "Should be able to add the same city info without any error.")
-
+	countryID := "CN"
 	cityName := "Xiamen"
 	cityAddress := "Xiamen, Fujian, China"
 
-	var lang string
-	lang, err = getLanguage(0)
+	lang, err := getLanguage(0)
 	suite.NoError(err, "Shoule be able to get language.")
 
-	updateCityInfo(pid1, cityName, cityAddress, lang)
+	// add city information
+	err = addCityInfo(pid1, countryID, cityName, cityAddress, lang)
+	suite.NoError(err, "Should be able to add city info.")
 
+	// add duplicated city information
+	err = addCityInfo(pid1, countryID, cityName, cityAddress, lang)
+	suite.Equal(ErrCityExisted, err, "City already existed.")
+
+	// update city information
+	err = updateCityInfo(pid1, cityName, cityAddress, lang)
+	suite.NoError(err, "Should be able to update city info.")
+
+	// get city information
 	existed, resultName, resultAddress, err := getCityInfo(pid1, lang)
 	suite.True(existed, "The result should be existed.")
 	suite.NoError(err, "Should be able to get.")
@@ -66,16 +72,46 @@ func (suite *dbHandleSuite) TestCityInfo() {
 	noLang, err = getLanguage(1)
 	suite.NoError(err, "Shoule be able to get language.")
 
+	// get not set language information
 	existed, resultName, resultAddress, err = getCityInfo(pid1, noLang)
 	suite.True(existed, "The result should be existed.")
 	suite.NoError(err, "Should be able to get.")
 	suite.EqualValues("", resultName, "The name should be empty")
 	suite.EqualValues("", resultAddress, "The address should be empty")
 
+	// check not existed city
 	noPlace := "placeid2"
 	existed, _, _, err = getCityInfo(noPlace, lang)
 	suite.False(existed, "The place should be not existed.")
 	suite.NoError(err, "Should be able to get.")
+
+	// add another city information
+	err = addCityInfo(noPlace, countryID, "", "", lang)
+	suite.NoError(err, "Should be able to add city info.")
+
+	// get all the cities in one country.
+	var pids, names, addresses []string
+	pids, names, addresses, err = getCountryCities(countryID, lang)
+	suite.NoError(err, "Shoule be able to get cities.")
+	suite.EqualValues(2, len(pids), "Should have 2 result.")
+	suite.EqualValues(2, len(names), "Should have 2 result.")
+	suite.EqualValues(2, len(addresses), "Should have 2 result.")
+
+	for i, one := range pids {
+		if one != pid1 && one != noPlace {
+			suite.Fail("id is wrong.")
+		}
+
+		if one == noPlace {
+			suite.EqualValues("", names[i], "Name should be empty.")
+			suite.EqualValues("", addresses[i], "Address should be empty.")
+		}
+
+		if one == pid1 {
+			suite.EqualValues(cityName, names[i], "Name is wrong.")
+			suite.EqualValues(cityAddress, addresses[i], "Address is wrong.")
+		}
+	}
 }
 
 func (suite *dbHandleSuite) TestCountryInfo() {
