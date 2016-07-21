@@ -76,20 +76,22 @@ func GetCountries(langIndex int) ([]string, []string, error) {
 }
 
 // GetCityWithLatLng to get city information with lat and lng.
-// Return name, address, error
-func GetCityWithLatLng(lat, lng float32, langIndex int) (string, string, error) {
+// Return placeid, name, address, error
+func GetCityWithLatLng(lat, lng float32, langIndex int) (string, string, string, error) {
 	lang, err := getLanguage(langIndex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	var placeid string
 	placeid, err = requestLocationWithLatLng(lat, lng)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return handleCityInfo(placeid, lang)
+	var name, address string
+	name, address, err = handleCityInfo(placeid, lang)
+	return placeid, name, address, err
 }
 
 // GetCitiesWithInput to get cities with input.
