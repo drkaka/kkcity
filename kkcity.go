@@ -111,22 +111,18 @@ func GetCitiesWithInput(input string, langIndex int) ([]string, []string, []stri
 	cityNames = make([]string, len(placeIDs))
 
 	var wg sync.WaitGroup
-	wg.Add(len(placeIDs))
 	for i, id := range placeIDs {
-		index := i
-		thisID := id
-		go func() {
+		wg.Add(1)
+
+		go func(thisID string, index int) {
+			defer wg.Done()
+
 			var cityName string
 			cityName, _, err = handleCityInfo(thisID, lang)
 			cityNames[index] = cityName
-			wg.Done()
-		}()
+		}(id, i)
 	}
 	wg.Wait()
-
-	if err != nil {
-		return placeIDs, cityNames, cityAddresses, err
-	}
 
 	return placeIDs, cityNames, cityAddresses, err
 }
